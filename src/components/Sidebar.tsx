@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Package, Tag, ShoppingBag, Users,
-  Image, Percent, BarChart2, Settings, LogOut, ChevronRight,
+  Image, Percent, LogOut, ChevronRight,
 } from 'lucide-react';
 
 const navItems = [
@@ -14,8 +14,6 @@ const navItems = [
   { href: '/dashboard/offers', label: 'Offers & Discounts', icon: Percent },
   { href: '/dashboard/banners', label: 'Banners', icon: Image },
   { href: '/dashboard/users', label: 'Users', icon: Users },
-  { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart2 },
-  { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];
 
 export default function Sidebar() {
@@ -26,8 +24,8 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-md">
-            <span className="text-white font-black text-lg">V</span>
+          <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-md border border-gray-100 overflow-hidden">
+            <img src="/logo.png" alt="Valamiki" className="w-8 h-8 object-contain" />
           </div>
           <div>
             <p className="font-bold text-gray-900 text-sm leading-none">VALAMIKI</p>

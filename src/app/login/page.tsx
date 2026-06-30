@@ -36,8 +36,8 @@ export default function LoginPage() {
         <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20">
           {/* Logo */}
           <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mx-auto shadow-xl mb-4">
-              <span className="text-white font-black text-2xl">V</span>
+            <div className="w-20 h-20 rounded-2xl bg-white flex items-center justify-center mx-auto shadow-xl mb-4 p-3">
+              <img src="/logo.png" alt="Valamiki" className="w-full h-full object-contain" />
             </div>
             <h1 className="text-2xl font-black text-white">VALAMIKI</h1>
             <p className="text-blue-200 text-sm mt-1">Admin Panel</p>

@@ -1,4 +1,8 @@
-﻿# dependencies
+﻿# env files (never commit secrets)
+.env.local
+.env*.local
+
+# dependencies
 node_modules/
 .pnp
 .pnp.js

@@ -87,6 +87,7 @@ const STATUS_COLORS: Record<string, string> = {
 export default function DashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(true);
 
@@ -108,6 +109,13 @@ export default function DashboardPage() {
       }));
       setLoadingOrders(false);
     }, () => setLoadingOrders(false));
+  }, []);
+
+  // Real-time users count
+  useEffect(() => {
+    return onSnapshot(collection(db, 'users'), (snap) => {
+      setTotalUsers(snap.size);
+    }, () => {});
   }, []);
 
   // Real-time products
@@ -132,7 +140,6 @@ export default function DashboardPage() {
   const todayRevenue  = todayOrders.reduce((s, o) => s + o.totalPrice, 0);
   const pendingCount  = orders.filter(o => o.orderStatus === 'pending').length;
   const totalRevenue  = orders.reduce((s, o) => s + o.totalPrice, 0);
-  const uniqueUsers   = new Set(orders.map(o => o.userId)).size;
   const lowStock      = products.filter(p => p.stock < 20).sort((a, b) => a.stock - b.stock);
   const recentOrders  = orders.slice(0, 6);
 
@@ -209,8 +216,8 @@ export default function DashboardPage() {
             value={products.length.toString()}
             icon={Package} color="bg-emerald-500" loading={loadingProducts} />
           <StatCard
-            label="Unique Customers" sub="From orders"
-            value={uniqueUsers.toLocaleString()}
+            label="Registered Users" sub="Signed in via Google"
+            value={totalUsers.toLocaleString()}
             icon={Users} color="bg-orange-500" loading={loadingOrders} />
         </div>
 

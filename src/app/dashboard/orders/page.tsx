@@ -6,7 +6,178 @@ import {
   collection, onSnapshot, doc, updateDoc,
   query, orderBy, Timestamp,
 } from 'firebase/firestore';
-import { Search, Eye, X, MapPin, Phone, Package } from 'lucide-react';
+import { Search, Eye, X, MapPin, Phone, Package, FileText } from 'lucide-react';
+
+// ── Invoice PDF generator (browser print-to-PDF) ──────────────────────────────
+function printInvoice(order: Order) {
+  const invoiceNo = `INV-${order.id.slice(0, 8).toUpperCase()}`;
+  const invoiceDate = order.createdAt.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+  const dueDate = new Date(order.createdAt.getTime() + 7 * 86400000)
+    .toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  const itemRows = order.products.map((p, i) => {
+    const unitPrice = Math.round(p.totalPrice / p.quantity);
+    return `
+      <tr>
+        <td class="sno">${i + 1}</td>
+        <td>${p.name}</td>
+        <td class="center">${p.quantity}</td>
+        <td class="right">₹${unitPrice.toLocaleString('en-IN')}</td>
+        <td class="right">₹${p.totalPrice.toLocaleString('en-IN')}</td>
+      </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Invoice ${invoiceNo}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #1a1a2e; background: #fff; padding: 40px; }
+  .page { max-width: 750px; margin: 0 auto; }
+
+  /* Header */
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 36px; }
+  .brand-name { font-size: 26px; font-weight: 800; color: #2563eb; letter-spacing: -0.5px; }
+  .brand-tag { font-size: 11px; color: #6b7280; margin-top: 2px; }
+  .brand-contact { font-size: 11px; color: #6b7280; line-height: 1.7; text-align: right; }
+
+  /* Invoice meta */
+  .meta-bar { background: #eff6ff; border-left: 4px solid #2563eb; border-radius: 8px; padding: 14px 20px; display: flex; gap: 48px; margin-bottom: 28px; }
+  .meta-bar .meta-item label { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #6b7280; display: block; margin-bottom: 3px; }
+  .meta-bar .meta-item span { font-size: 13px; font-weight: 700; color: #1e3a8a; }
+
+  /* Addresses */
+  .addresses { display: flex; gap: 24px; margin-bottom: 28px; }
+  .addr-box { flex: 1; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; }
+  .addr-box h4 { font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: #9ca3af; margin-bottom: 8px; }
+  .addr-box p { font-size: 13px; line-height: 1.6; color: #374151; }
+  .addr-box .name { font-weight: 700; font-size: 14px; color: #111827; }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+  thead tr { background: #2563eb; color: #fff; }
+  thead th { padding: 10px 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; text-align: left; }
+  thead th.center { text-align: center; }
+  thead th.right { text-align: right; }
+  tbody tr { border-bottom: 1px solid #f3f4f6; }
+  tbody tr:hover { background: #f8faff; }
+  tbody td { padding: 11px 12px; font-size: 13px; color: #374151; }
+  tbody td.sno { color: #9ca3af; font-size: 11px; width: 36px; }
+  tbody td.center { text-align: center; }
+  tbody td.right { text-align: right; font-weight: 600; }
+
+  /* Totals */
+  .totals { width: 280px; margin-left: auto; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; }
+  .totals .row { display: flex; justify-content: space-between; padding: 9px 16px; font-size: 13px; color: #6b7280; border-bottom: 1px solid #f3f4f6; }
+  .totals .row.discount { color: #059669; }
+  .totals .row.total { background: #2563eb; color: #fff; font-weight: 800; font-size: 15px; border-bottom: none; }
+
+  /* Payment */
+  .payment-row { display: flex; align-items: center; gap: 10px; margin-top: 24px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 12px 16px; }
+  .payment-row .label { font-size: 11px; text-transform: uppercase; color: #6b7280; letter-spacing: .5px; }
+  .payment-row .value { font-weight: 700; font-size: 14px; color: #065f46; margin-top: 2px; }
+
+  /* Footer */
+  .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
+  .footer .thanks { font-size: 14px; font-weight: 700; color: #2563eb; }
+  .footer .note { font-size: 11px; color: #9ca3af; }
+
+  @media print {
+    body { padding: 20px; }
+    @page { size: A4; margin: 15mm; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="brand-name">VALAMIKI</div>
+      <div class="brand-tag">Grocery &amp; Stationery Store</div>
+    </div>
+    <div class="brand-contact">
+      123, Market Road, Salem — 636001<br/>
+      Tamil Nadu, India<br/>
+      support@valamiki.com &nbsp;·&nbsp; +91 98765 43210<br/>
+      GSTIN: 33XXXXX1234X1ZX (update later)
+    </div>
+  </div>
+
+  <!-- Invoice meta -->
+  <div class="meta-bar">
+    <div class="meta-item"><label>Invoice No.</label><span>${invoiceNo}</span></div>
+    <div class="meta-item"><label>Invoice Date</label><span>${invoiceDate}</span></div>
+    <div class="meta-item"><label>Due Date</label><span>${dueDate}</span></div>
+    <div class="meta-item"><label>Status</label><span style="text-transform:capitalize">${order.orderStatus}</span></div>
+  </div>
+
+  <!-- Addresses -->
+  <div class="addresses">
+    <div class="addr-box">
+      <h4>From</h4>
+      <p class="name">Valamiki Store</p>
+      <p>123, Market Road, Salem<br/>Tamil Nadu — 636001<br/>+91 98765 43210</p>
+    </div>
+    <div class="addr-box">
+      <h4>Bill To / Ship To</h4>
+      <p class="name">${order.deliveryAddress?.name || '—'}</p>
+      <p>
+        ${order.deliveryAddress?.street || ''}, ${order.deliveryAddress?.city || ''} — ${order.deliveryAddress?.pincode || ''}<br/>
+        Phone: ${order.deliveryAddress?.phone || '—'}
+      </p>
+    </div>
+  </div>
+
+  <!-- Items table -->
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Product Description</th>
+        <th class="center">Qty</th>
+        <th class="right">Unit Price</th>
+        <th class="right">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${itemRows}
+    </tbody>
+  </table>
+
+  <!-- Totals -->
+  <div class="totals">
+    <div class="row"><span>Subtotal</span><span>₹${order.subtotal.toLocaleString('en-IN')}</span></div>
+    <div class="row"><span>Delivery Charge</span><span>${order.deliveryCharge === 0 ? 'Free' : '₹' + order.deliveryCharge.toLocaleString('en-IN')}</span></div>
+    ${order.discount > 0 ? `<div class="row discount"><span>Discount</span><span>-₹${order.discount.toLocaleString('en-IN')}</span></div>` : ''}
+    <div class="row total"><span>Total Due</span><span>₹${order.totalPrice.toLocaleString('en-IN')}</span></div>
+  </div>
+
+  <!-- Payment method -->
+  <div class="payment-row">
+    <div>
+      <div class="label">Payment Method</div>
+      <div class="value" style="text-transform:capitalize">${order.paymentMethod}</div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="thanks">Thank you for shopping with Valamiki! 🛒</div>
+    <div class="note">This is a computer-generated invoice.<br/>No signature required.</div>
+  </div>
+
+</div>
+<script>window.onload = () => { window.print(); }<\/script>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank');
+  if (win) { win.document.write(html); win.document.close(); }
+}
 
 type OrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
 
@@ -94,7 +265,8 @@ export default function OrdersPage() {
   const filtered = orders.filter(o => {
     const matchSearch =
       o.id.toLowerCase().includes(search.toLowerCase()) ||
-      o.deliveryAddress?.name?.toLowerCase().includes(search.toLowerCase());
+      o.deliveryAddress?.name?.toLowerCase().includes(search.toLowerCase()) ||
+      o.products.some(p => p.name.toLowerCase().includes(search.toLowerCase()));
     const matchStatus = filterStatus === 'all' || o.orderStatus === filterStatus;
     return matchSearch && matchStatus;
   });
@@ -143,7 +315,7 @@ export default function OrdersPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
-                    {['Order ID', 'Customer', 'Items', 'Amount', 'Payment', 'Date', 'Status', 'Change Status'].map(h => (
+                    {['Product(s)', 'Customer', 'Items', 'Amount', 'Payment', 'Date', 'Status', 'Change Status'].map(h => (
                       <th key={h} className="text-left px-5 py-3.5 text-xs font-semibold text-gray-500 whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -151,8 +323,11 @@ export default function OrdersPage() {
                 <tbody>
                   {filtered.map(order => (
                     <tr key={order.id} className="border-t border-gray-50 hover:bg-gray-50/50">
-                      <td className="px-5 py-4 font-mono text-xs text-gray-500 font-bold">
-                        #{order.id.slice(0, 8).toUpperCase()}
+                      <td className="px-5 py-4 max-w-[180px]">
+                        <p className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2">
+                          {order.products.map(p => p.name).join(', ') || '—'}
+                        </p>
+                        <p className="text-[10px] text-gray-400 font-mono mt-0.5">#{order.id.slice(0, 8).toUpperCase()}</p>
                       </td>
                       <td className="px-5 py-4">
                         <p className="font-semibold text-gray-900">{order.deliveryAddress?.name || '—'}</p>
@@ -226,10 +401,17 @@ export default function OrdersPage() {
                 <h2 className="font-bold text-gray-900">Order #{selectedOrder.id.slice(0, 8).toUpperCase()}</h2>
                 <p className="text-xs text-gray-400 mt-0.5">{selectedOrder.createdAt.toLocaleString('en-IN')}</p>
               </div>
-              <button onClick={() => setSelectedOrder(null)}
-                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200">
-                <X size={16} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => printInvoice(selectedOrder)}
+                  className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                  title="Download Invoice PDF">
+                  <FileText size={13} /> Invoice
+                </button>
+                <button onClick={() => setSelectedOrder(null)}
+                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200">
+                  <X size={16} />
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 p-6 space-y-5">

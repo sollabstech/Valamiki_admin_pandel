@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Package, Tag, ShoppingBag, Users,
-  Image, Percent, LogOut, ChevronRight,
+  Image, LogOut, ChevronRight, Mail,
 } from 'lucide-react';
 
 const navItems = [
@@ -11,9 +11,9 @@ const navItems = [
   { href: '/dashboard/products', label: 'Products', icon: Package },
   { href: '/dashboard/categories', label: 'Categories', icon: Tag },
   { href: '/dashboard/orders', label: 'Orders', icon: ShoppingBag },
-  { href: '/dashboard/offers', label: 'Offers & Discounts', icon: Percent },
   { href: '/dashboard/banners', label: 'Banners', icon: Image },
   { href: '/dashboard/users', label: 'Users', icon: Users },
+  { href: '/dashboard/subscribers', label: 'Subscribers', icon: Mail },
 ];
 
 export default function Sidebar() {

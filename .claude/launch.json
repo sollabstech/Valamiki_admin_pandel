@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--", "--port", "3001"],
       "port": 3001
+    },
+    {
+      "name": "Commerce Website Dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "C:\\Users\\sollabstech\\Desktop\\Valamiki_commerce_webstie", "run", "dev"],
+      "port": 3000
     }
   ]
 }

@@ -267,21 +267,22 @@ export default function ProductsPage() {
       <div className="p-6 space-y-5">
 
         {/* Top bar */}
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-          <div className="flex gap-3 flex-1 flex-wrap">
-            <div className="flex items-center gap-2 bg-white border border-gray-100 rounded-xl px-3 py-2.5 flex-1 min-w-48 shadow-sm">
-              <Search size={15} className="text-gray-400" />
-              <input value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Search products..." className="text-sm outline-none w-full text-gray-700 placeholder-gray-400" />
-            </div>
-            <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
-              className="bg-white border border-gray-100 rounded-xl px-3 py-2.5 text-sm text-gray-700 shadow-sm outline-none">
-              <option value="all">All Categories</option>
-              {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
-            </select>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-white border border-gray-100 rounded-xl px-3 py-2.5 shadow-sm flex-1 min-w-0">
+            <Search size={15} className="text-gray-400 shrink-0" />
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search products..." className="text-sm outline-none w-full min-w-0 text-gray-700 placeholder-gray-400" />
           </div>
+          <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
+            className="bg-white border border-gray-100 rounded-xl px-3 py-2.5 text-sm text-gray-700 shadow-sm outline-none shrink-0">
+            <option value="all">All Categories</option>
+            {categories.map(c => {
+              const icon = c.icon && !c.icon.startsWith('http') ? c.icon + ' ' : '';
+              return <option key={c.id} value={c.id}>{icon}{c.name}</option>;
+            })}
+          </select>
           <button onClick={openAdd}
-            className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg hover:from-blue-700 hover:to-indigo-700 transition-all whitespace-nowrap">
+            className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg hover:from-blue-700 hover:to-indigo-700 transition-all whitespace-nowrap shrink-0">
             <Plus size={16} /> Add Product
           </button>
         </div>

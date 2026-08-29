@@ -6,7 +6,7 @@ import {
   collection, onSnapshot, doc, updateDoc,
   query, orderBy, Timestamp,
 } from 'firebase/firestore';
-import { Search, Eye, X, MapPin, Phone, Package, FileText } from 'lucide-react';
+import { Search, Eye, X, MapPin, Phone, Package, FileText, Download, ChevronDown, Table2 } from 'lucide-react';
 
 // ── Invoice PDF generator (browser print-to-PDF) ──────────────────────────────
 function printInvoice(order: Order) {
@@ -179,6 +179,133 @@ function printInvoice(order: Order) {
   if (win) { win.document.write(html); win.document.close(); }
 }
 
+// ── CSV / Excel export ────────────────────────────────────────────────────────
+function exportToCSV(orders: Order[], label: string) {
+  const headers = ['Order ID','Customer','Phone','Products','Items','Amount (₹)','Payment','Status','Date','Address'];
+  const rows = orders.map(o => [
+    o.id.slice(0, 8).toUpperCase(),
+    o.deliveryAddress?.name || '',
+    o.deliveryAddress?.phone || '',
+    o.products.map(p => `${p.name} x${p.quantity}`).join(' | '),
+    o.products.length,
+    o.totalPrice,
+    o.paymentMethod,
+    o.orderStatus,
+    o.createdAt.toLocaleDateString('en-IN'),
+    [o.deliveryAddress?.street, o.deliveryAddress?.city, o.deliveryAddress?.pincode].filter(Boolean).join(', '),
+  ]);
+  const csv = [headers, ...rows]
+    .map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `valamiki-orders-${label}-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ── PDF bulk report ───────────────────────────────────────────────────────────
+function exportToPDF(orders: Order[], label: string) {
+  const STATUS_BG: Record<string, string> = {
+    pending: '#fef3c7', confirmed: '#dbeafe', shipped: '#ede9fe',
+    delivered: '#d1fae5', cancelled: '#fee2e2',
+  };
+  const STATUS_TEXT: Record<string, string> = {
+    pending: '#92400e', confirmed: '#1e40af', shipped: '#5b21b6',
+    delivered: '#065f46', cancelled: '#991b1b',
+  };
+  const totalAmt = orders.reduce((s, o) => s + o.totalPrice, 0);
+
+  const rows = orders.map((o, i) => `
+    <tr>
+      <td style="color:#9ca3af;font-size:11px">${i + 1}</td>
+      <td style="font-family:monospace;font-size:11px;color:#6b7280">#${o.id.slice(0, 8).toUpperCase()}</td>
+      <td>
+        <strong>${o.deliveryAddress?.name || '—'}</strong>
+        <div style="font-size:11px;color:#9ca3af">${o.deliveryAddress?.phone || ''}</div>
+      </td>
+      <td style="font-size:12px;color:#374151">${o.products.map(p => `${p.name} ×${p.quantity}`).join('<br/>')}</td>
+      <td style="text-align:center">${o.products.length}</td>
+      <td style="font-weight:700;text-align:right">₹${o.totalPrice.toLocaleString('en-IN')}</td>
+      <td style="text-align:center;font-size:11px;text-transform:capitalize">${o.paymentMethod}</td>
+      <td style="text-align:center">
+        <span style="background:${STATUS_BG[o.orderStatus]||'#f3f4f6'};color:${STATUS_TEXT[o.orderStatus]||'#374151'};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;text-transform:capitalize">
+          ${o.orderStatus}
+        </span>
+      </td>
+      <td style="font-size:11px;white-space:nowrap">${o.createdAt.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</td>
+    </tr>`).join('');
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"/>
+<title>Valamiki Orders — ${label}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;color:#1a1a2e;background:#fff;padding:32px}
+  .brand{font-size:22px;font-weight:800;color:#2563eb}
+  .sub{font-size:11px;color:#6b7280;margin-top:2px}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #e5e7eb}
+  .report-title{font-size:16px;font-weight:700;color:#111827}
+  .report-meta{font-size:11px;color:#6b7280;margin-top:4px}
+  .summary{display:flex;gap:16px;margin-bottom:24px}
+  .summary-card{flex:1;background:#f8faff;border:1px solid #dbeafe;border-radius:10px;padding:12px 16px}
+  .summary-card .label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280}
+  .summary-card .value{font-size:18px;font-weight:800;color:#1e3a8a;margin-top:4px}
+  table{width:100%;border-collapse:collapse}
+  thead tr{background:#2563eb;color:#fff}
+  thead th{padding:10px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;text-align:left}
+  tbody tr{border-bottom:1px solid #f3f4f6}
+  tbody tr:nth-child(even){background:#f9fafb}
+  tbody td{padding:10px 12px;vertical-align:middle}
+  tfoot tr{background:#eff6ff;font-weight:700;border-top:2px solid #bfdbfe}
+  tfoot td{padding:12px;font-size:13px}
+  .footer{margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:11px;color:#9ca3af}
+  @media print{body{padding:16px}@page{size:A4 landscape;margin:12mm}}
+</style></head><body>
+<div class="header">
+  <div>
+    <div class="brand">VALAMIKI</div>
+    <div class="sub">Grocery &amp; Stationery Store</div>
+  </div>
+  <div style="text-align:right">
+    <div class="report-title">Orders Report — ${label.charAt(0).toUpperCase()+label.slice(1)}</div>
+    <div class="report-meta">Generated: ${new Date().toLocaleString('en-IN')}</div>
+  </div>
+</div>
+<div class="summary">
+  <div class="summary-card"><div class="label">Total Orders</div><div class="value">${orders.length}</div></div>
+  <div class="summary-card"><div class="label">Total Revenue</div><div class="value">₹${totalAmt.toLocaleString('en-IN')}</div></div>
+  <div class="summary-card"><div class="label">Avg. Order Value</div><div class="value">₹${orders.length ? Math.round(totalAmt/orders.length).toLocaleString('en-IN') : 0}</div></div>
+  <div class="summary-card"><div class="label">Filter</div><div class="value" style="font-size:14px;text-transform:capitalize">${label}</div></div>
+</div>
+<table>
+  <thead><tr>
+    <th>#</th><th>Order ID</th><th>Customer</th><th>Products</th>
+    <th style="text-align:center">Items</th><th style="text-align:right">Amount</th>
+    <th style="text-align:center">Payment</th><th style="text-align:center">Status</th><th>Date</th>
+  </tr></thead>
+  <tbody>${rows}</tbody>
+  <tfoot><tr>
+    <td colspan="5" style="text-align:right">Grand Total (${orders.length} orders)</td>
+    <td style="text-align:right">₹${totalAmt.toLocaleString('en-IN')}</td>
+    <td colspan="3"></td>
+  </tr></tfoot>
+</table>
+<div class="footer">
+  <span>Valamiki Admin Panel — Confidential</span>
+  <span>Printed on ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'})}</span>
+</div>
+<script>window.onload=()=>{window.print()}<\/script>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  if (win) { win.document.write(html); win.document.close(); }
+}
+
 type OrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
 
 interface OrderItem { name: string; quantity: number; totalPrice: number; }
@@ -215,6 +342,7 @@ export default function OrdersPage() {
   const [filterStatus, setFilterStatus] = useState<'all' | OrderStatus>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [showDownload, setShowDownload] = useState(false);
 
   // Real-time Firestore listener
   useEffect(() => {
@@ -295,12 +423,63 @@ export default function OrdersPage() {
           ))}
         </div>
 
-        {/* Search */}
-        <div className="flex items-center gap-2 bg-white border border-gray-100 rounded-xl px-3 py-2.5 shadow-sm max-w-sm">
-          <Search size={15} className="text-gray-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search by order ID or customer..."
-            className="text-sm outline-none w-full text-gray-700 placeholder-gray-400" />
+        {/* Search + Download */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-white border border-gray-100 rounded-xl px-3 py-2.5 shadow-sm flex-1 max-w-sm min-w-0">
+            <Search size={15} className="text-gray-400 shrink-0" />
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search by order ID or customer..."
+              className="text-sm outline-none w-full text-gray-700 placeholder-gray-400" />
+          </div>
+
+          {/* Download dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowDownload(v => !v)}
+              className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-sm whitespace-nowrap transition-colors">
+              <Download size={15} className="text-gray-500" />
+              Download&nbsp;
+              <span className={`capitalize px-2 py-0.5 rounded-full text-xs font-semibold ${filterStatus === 'all' ? 'bg-gray-100 text-gray-600' : filterStatus === 'pending' ? 'bg-amber-100 text-amber-700' : filterStatus === 'confirmed' ? 'bg-blue-100 text-blue-700' : filterStatus === 'shipped' ? 'bg-purple-100 text-purple-700' : filterStatus === 'delivered' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                {filterStatus === 'all' ? 'All' : filterStatus} ({filtered.length})
+              </span>
+              <ChevronDown size={14} className={`text-gray-400 transition-transform ${showDownload ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showDownload && (
+              <>
+                {/* backdrop */}
+                <div className="fixed inset-0 z-10" onClick={() => setShowDownload(false)} />
+                <div className="absolute left-0 top-full mt-2 bg-white border border-gray-100 rounded-2xl shadow-xl z-20 w-56 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-50 bg-gray-50/60">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Export {filtered.length} Orders</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5 capitalize">Filter: {filterStatus}</p>
+                  </div>
+                  <button
+                    onClick={() => { exportToPDF(filtered, filterStatus); setShowDownload(false); }}
+                    className="flex items-center gap-3 w-full px-4 py-3.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors border-b border-gray-50">
+                    <div className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center shrink-0">
+                      <FileText size={15} className="text-red-500" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-semibold">Download PDF</p>
+                      <p className="text-[11px] text-gray-400">Print-ready report</p>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => { exportToCSV(filtered, filterStatus); setShowDownload(false); }}
+                    className="flex items-center gap-3 w-full px-4 py-3.5 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition-colors">
+                    <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center shrink-0">
+                      <Table2 size={15} className="text-emerald-600" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-semibold">Download Excel</p>
+                      <p className="text-[11px] text-gray-400">CSV · opens in Excel</p>
+                    </div>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Table */}

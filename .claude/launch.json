@@ -2,16 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "Admin Panel Dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--port", "3001"],
-      "port": 3001
-    },
-    {
-      "name": "Commerce Website Dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "C:\\Users\\sollabstech\\Desktop\\Valamiki_commerce_webstie", "run", "dev"],
-      "port": 3000
+      "name": "valamiki_admin",
+      "runtimeExecutable": "C:\\Users\\sollabstech\\Desktop\\Valamiki_admin_pandel\\start-dev.cmd",
+      "runtimeArgs": [],
+      "port": 3003
     }
   ]
 }

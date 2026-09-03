@@ -1,28 +1,34 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { Eye, EyeOff, Lock, User } from 'lucide-react';
+import { verifyCredentials, startSession } from '@/lib/adminAuth';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-///testing file /
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!email || !password) { setError('Please fill in all fields.'); return; }
+    if (!username || !password) { setError('Please fill in all fields.'); return; }
     setLoading(true);
-    await new Promise(r => setTimeout(r, 800));
-    if (email === 'admin@valamiki.com' && password === 'admin123') {
-      router.push('/dashboard');
-    } else {
-      setError('Invalid email or password.');
+    try {
+      if (await verifyCredentials(username, password)) {
+        startSession();
+        router.replace('/dashboard');
+      } else {
+        setError('Invalid username or password.');
+      }
+    } catch {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -51,11 +57,11 @@ export default function LoginPage() {
             )}
 
             <div>
-              <label className="text-blue-200 text-xs font-semibold mb-1.5 block">Email Address</label>
+              <label className="text-blue-200 text-xs font-semibold mb-1.5 block">Username</label>
               <div className="flex items-center gap-3 bg-white/10 border border-white/20 rounded-xl px-4 py-3 focus-within:border-blue-400 focus-within:bg-white/15 transition-all">
-                <Mail size={16} className="text-blue-300 flex-shrink-0" />
-                <input value={email} onChange={e => setEmail(e.target.value)}
-                  type="email" placeholder="admin@valamiki.com"
+                <User size={16} className="text-blue-300 flex-shrink-0" />
+                <input value={username} onChange={e => setUsername(e.target.value)}
+                  type="text" autoComplete="username" placeholder="admin@sollabstech"
                   className="bg-transparent text-white placeholder-white/30 text-sm outline-none w-full" />
               </div>
             </div>
@@ -65,20 +71,12 @@ export default function LoginPage() {
               <div className="flex items-center gap-3 bg-white/10 border border-white/20 rounded-xl px-4 py-3 focus-within:border-blue-400 focus-within:bg-white/15 transition-all">
                 <Lock size={16} className="text-blue-300 flex-shrink-0" />
                 <input value={password} onChange={e => setPassword(e.target.value)}
-                  type={showPw ? 'text' : 'password'} placeholder="••••••••"
+                  type={showPw ? 'text' : 'password'} autoComplete="current-password" placeholder="••••••••"
                   className="bg-transparent text-white placeholder-white/30 text-sm outline-none w-full" />
                 <button type="button" onClick={() => setShowPw(p => !p)} className="text-blue-300 hover:text-white transition-colors">
                   {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
-            </div>
-
-            <div className="flex items-center justify-between text-xs">
-              <label className="flex items-center gap-2 text-blue-200 cursor-pointer">
-                <input type="checkbox" className="rounded" />
-                Remember me
-              </label>
-              <button type="button" className="text-blue-300 hover:text-white font-semibold">Forgot password?</button>
             </div>
 
             <button type="submit" disabled={loading}
@@ -90,7 +88,7 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-blue-300/60 text-xs">Demo: admin@valamiki.com / admin123</p>
+            <p className="text-blue-300/60 text-xs">Change your password in Dashboard → Settings after signing in.</p>
           </div>
         </div>
       </div>

@@ -4,8 +4,8 @@
     {
       "name": "valamiki_admin",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "-p", "3003"],
-      "port": 3003
+      "runtimeArgs": ["run", "dev", "--", "-p", "3002"],
+      "port": 3002
     }
   ]
 }

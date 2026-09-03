@@ -1,10 +1,12 @@
 'use client';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Package, Tag, ShoppingBag, Users,
-  Image, LogOut, ChevronRight, Mail,
+  Image, LogOut, ChevronRight, Mail, Settings,
 } from 'lucide-react';
+import { getActiveUsername, endSession, DEFAULT_ADMIN } from '@/lib/adminAuth';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -14,10 +16,22 @@ const navItems = [
   { href: '/dashboard/banners', label: 'Banners', icon: Image },
   { href: '/dashboard/users', label: 'Users', icon: Users },
   { href: '/dashboard/subscribers', label: 'Subscribers', icon: Mail },
+  { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [username, setUsername] = useState(DEFAULT_ADMIN.username);
+
+  useEffect(() => {
+    getActiveUsername().then(setUsername).catch(() => {});
+  }, []);
+
+  const handleSignOut = () => {
+    endSession();
+    router.replace('/login');
+  };
 
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-100 shadow-sm flex flex-col z-30">
@@ -68,16 +82,16 @@ export default function Sidebar() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold text-gray-800 truncate">Admin</p>
-            <p className="text-[10px] text-gray-400 truncate">admin@valamiki.com</p>
+            <p className="text-[10px] text-gray-400 truncate">{username}</p>
           </div>
         </div>
-        <Link
-          href="/login"
-          className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-red-500 hover:bg-red-50 font-medium"
+        <button
+          onClick={handleSignOut}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-red-500 hover:bg-red-50 font-medium"
         >
           <LogOut size={15} />
           Sign Out
-        </Link>
+        </button>
       </div>
     </aside>
   );

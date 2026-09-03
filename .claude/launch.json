@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "valamiki_admin",
-      "runtimeExecutable": "C:\\Users\\sollabstech\\Desktop\\Valamiki_admin_pandel\\start-dev.cmd",
-      "runtimeArgs": [],
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "-p", "3003"],
       "port": 3003
     }
   ]

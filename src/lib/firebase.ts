@@ -25,4 +25,10 @@ if (typeof window !== 'undefined') {
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+// Fail fast when Storage is unreachable (e.g. bucket not enabled) instead of
+// retrying for the SDK default of 2 minutes and leaving the UI stuck.
+storage.maxUploadRetryTime = 15000;
+storage.maxOperationRetryTime = 15000;
+
 export default app;

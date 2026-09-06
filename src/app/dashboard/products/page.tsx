@@ -212,7 +212,10 @@ export default function ProductsPage() {
       }
 
       if (hadUploadError) {
-        setUploadError('Some images failed to upload. Check Firebase Storage rules (allow write: if true for dev).');
+        setUploadError(
+          'Some images failed to upload — Firebase Storage is not enabled for this project (or its bucket was removed). ' +
+          'The product was saved without them; enable Storage in the Firebase console, then edit the product to add images.'
+        );
       }
 
       const productData = {
@@ -480,7 +483,10 @@ export default function ProductsPage() {
                         setForm({ ...form, categoryId: e.target.value, categoryName: cat?.name ?? '' });
                       }}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                      {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+                      {categories.map(c => {
+                        const icon = c.icon && !c.icon.startsWith('http') ? c.icon + ' ' : '';
+                        return <option key={c.id} value={c.id}>{icon}{c.name}</option>;
+                      })}
                     </select>
                   )}
                 </div>

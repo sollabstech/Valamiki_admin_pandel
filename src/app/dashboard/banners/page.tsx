@@ -98,6 +98,7 @@ export default function BannersPage() {
   const handleSave = async () => {
     setSaving(true);
     setUploadError('');
+    let imageFailed = false;
     try {
       let imageUrl = form.imageUrl.trim();
 
@@ -111,9 +112,12 @@ export default function BannersPage() {
           imageUrl = await getDownloadURL(storageRef);
         } catch (imgErr) {
           console.warn('Banner image upload failed:', imgErr);
-          setUploadError('Image upload failed. Check Firebase Storage rules (allow write: if true for dev). You can paste an image URL below instead.');
-          setSaving(false);
-          return;
+          imageFailed = true;
+          setUploadError(
+            'Image upload failed — Firebase Storage is not enabled for this project (or its bucket was removed). ' +
+            'Paste an image URL below, or enable Storage in the Firebase console and re-upload.'
+          );
+          // Don't block the save — fall through with the pasted URL (if any).
         }
       }
 
@@ -131,7 +135,8 @@ export default function BannersPage() {
       } else {
         await addDoc(collection(db, 'banners'), { ...data, createdAt: serverTimestamp() });
       }
-      setShowModal(false);
+      // Keep the modal open when the image failed so the warning is visible.
+      if (!imageFailed) setShowModal(false);
     } catch (e) {
       console.error('Failed to save banner:', e);
       alert('Failed to save: ' + (e instanceof Error ? e.message : String(e)));

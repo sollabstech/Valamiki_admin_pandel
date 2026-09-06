@@ -81,6 +81,7 @@ export default function CategoriesPage() {
     if (!form.name.trim()) return;
     setSaving(true);
     setUploadError('');
+    let imageFailed = false;
     try {
       let iconUrl = form.icon;
 
@@ -93,9 +94,12 @@ export default function CategoriesPage() {
           iconUrl = await getDownloadURL(storageRef);
         } catch (imgErr) {
           console.warn('Category image upload failed:', imgErr);
-          setUploadError('Image upload failed. Check Firebase Storage rules. You can paste an image URL below instead.');
-          setSaving(false);
-          return;
+          imageFailed = true;
+          setUploadError(
+            'Image upload failed — Firebase Storage is not enabled for this project (or its bucket was removed). ' +
+            'The category is still saved; paste an image URL below, or enable Storage in the Firebase console and re-upload.'
+          );
+          // Don't block the save — fall through with the emoji / pasted-URL icon.
         }
       }
 
@@ -112,7 +116,8 @@ export default function CategoriesPage() {
       } else {
         await addDoc(collection(db, 'categories'), { ...data, productCount: 0, createdAt: serverTimestamp() });
       }
-      setShowModal(false);
+      // Keep the modal open when the image failed so the warning is visible.
+      if (!imageFailed) setShowModal(false);
     } catch (e) {
       console.error('Failed to save category:', e);
       alert('Failed to save: ' + (e instanceof Error ? e.message : String(e)));

@@ -9,6 +9,8 @@ import {
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Plus, Edit2, Trash2, X, Image as ImageIcon, GripVertical, Upload, Info } from 'lucide-react';
 
+type BannerType = 'main' | 'sub';
+
 interface Banner {
   id: string;
   title: string;
@@ -16,6 +18,7 @@ interface Banner {
   imageUrl: string;
   isActive: boolean;
   sortOrder: number;
+  bannerType: BannerType;
 }
 
 const initForm = {
@@ -24,6 +27,7 @@ const initForm = {
   imageUrl: '',
   isActive: true,
   sortOrder: 0,
+  bannerType: 'main' as BannerType,
 };
 
 const gradients = [
@@ -34,6 +38,97 @@ const gradients = [
   'from-pink-500 to-rose-500',
   'from-cyan-500 to-blue-500',
 ];
+
+const SECTION_COPY: Record<BannerType, { label: string; hint: string }> = {
+  main: { label: 'Main Banner', hint: 'Shown in the homepage hero carousel at the very top.' },
+  sub: { label: 'Sub Banner', hint: 'Shown as a promo banner further down the homepage.' },
+};
+
+function BannerSection({
+  type, banners, loading, onAdd, onEdit, onDelete, onToggle,
+}: {
+  type: BannerType;
+  banners: Banner[];
+  loading: boolean;
+  onAdd: () => void;
+  onEdit: (b: Banner) => void;
+  onDelete: (id: string) => void;
+  onToggle: (b: Banner) => void;
+}) {
+  const items = banners.filter((b) => b.bannerType === type);
+  const title = type === 'main' ? 'Main Banners' : 'Sub Banners';
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-bold text-gray-800">{title}</h2>
+          <p className="text-xs text-gray-500 font-medium mt-0.5">
+            {items.length} banners · {items.filter((b) => b.isActive).length} active
+          </p>
+        </div>
+        <button onClick={onAdd}
+          className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition-all">
+          <Plus size={16} /> Add {SECTION_COPY[type].label}
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12 text-gray-400">
+          <div className="w-7 h-7 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+          <p className="text-xs">Loading...</p>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="bg-white rounded-2xl p-10 text-center text-gray-400 border border-gray-100 shadow-sm">
+          <ImageIcon size={32} className="mx-auto mb-2 opacity-30" />
+          <p className="text-sm font-medium">No {title.toLowerCase()} yet — add your first one!</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {items.map((b, i) => (
+            <div key={b.id} className={`rounded-2xl overflow-hidden shadow-md ${!b.isActive ? 'opacity-50' : ''}`}>
+              {/* Banner preview — relative so the bg image stays inside this section only */}
+              <div className={`relative h-36 bg-gradient-to-r ${gradients[i % gradients.length]} p-5 flex flex-col justify-between`}>
+                {b.imageUrl && (
+                  <div className="absolute inset-0 bg-cover bg-center opacity-30 pointer-events-none"
+                    style={{ backgroundImage: `url(${b.imageUrl})` }} />
+                )}
+                <div className="relative flex items-start justify-between">
+                  <div>
+                    <p className="text-white font-bold text-lg leading-tight">{b.title}</p>
+                    {b.subtitle && <p className="text-white/80 text-sm mt-0.5">{b.subtitle}</p>}
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${b.isActive ? 'bg-white/20 text-white' : 'bg-black/20 text-white/70'}`}>
+                    {b.isActive ? '● Live' : '○ Off'}
+                  </span>
+                </div>
+                <div className="relative flex items-center gap-1 text-white/60 text-xs">
+                  <GripVertical size={12} />
+                  <span>Order: {b.sortOrder || i + 1}</span>
+                </div>
+              </div>
+
+              {/* Actions bar */}
+              <div className="bg-white border border-gray-100 px-4 py-3 flex items-center justify-between">
+                <div className="text-xs text-gray-500 font-medium truncate pr-2">
+                  {b.title || <span className="italic text-gray-300">No title</span>}
+                </div>
+                <div className="flex gap-1.5 flex-shrink-0">
+                  <button onClick={() => onToggle(b)}
+                    className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors ${b.isActive ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}>
+                    {b.isActive ? 'Hide' : 'Show'}
+                  </button>
+                  <button onClick={() => onEdit(b)} className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100"><Edit2 size={12} /></button>
+                  <button onClick={() => onDelete(b.id)} className="w-7 h-7 rounded-lg bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100"><Trash2 size={12} /></button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function BannersPage() {
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -59,6 +154,7 @@ export default function BannersPage() {
           id: d.id, title: r.title ?? '', subtitle: r.subtitle ?? '',
           imageUrl: r.imageUrl ?? '', isActive: r.isActive ?? true,
           sortOrder: r.sortOrder ?? 0,
+          bannerType: r.bannerType === 'sub' ? 'sub' : 'main',
         };
       }));
       setLoading(false);
@@ -66,9 +162,9 @@ export default function BannersPage() {
     return () => unsub();
   }, []);
 
-  const openAdd = () => {
+  const openAdd = (type: BannerType) => {
     setEditId(null);
-    setForm(initForm);
+    setForm({ ...initForm, bannerType: type });
     setImageFile(null);
     setImagePreview('');
     setUploadError('');
@@ -79,7 +175,7 @@ export default function BannersPage() {
     setEditId(b.id);
     setForm({
       title: b.title, subtitle: b.subtitle, imageUrl: b.imageUrl,
-      isActive: b.isActive, sortOrder: b.sortOrder,
+      isActive: b.isActive, sortOrder: b.sortOrder, bannerType: b.bannerType,
     });
     setImageFile(null);
     setImagePreview(b.imageUrl); // show existing image
@@ -126,8 +222,9 @@ export default function BannersPage() {
         subtitle: '',
         imageUrl,
         isActive: form.isActive,
-        // Auto-assign sort order for new banners; keep existing order on edit.
-        sortOrder: editId ? form.sortOrder : banners.length + 1,
+        bannerType: form.bannerType,
+        // Auto-assign sort order within this banner's own type; keep existing order on edit.
+        sortOrder: editId ? form.sortOrder : banners.filter((b) => b.bannerType === form.bannerType).length + 1,
       };
 
       if (editId) {
@@ -159,70 +256,25 @@ export default function BannersPage() {
   return (
     <div>
       <Header title="Banners" />
-      <div className="p-6 space-y-5">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500 font-medium">
-            {banners.length} banners · {banners.filter(b => b.isActive).length} active
-          </p>
-          <button onClick={openAdd}
-            className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition-all">
-            <Plus size={16} /> Add Banner
-          </button>
-        </div>
-
-        {loading ? (
-          <div className="text-center py-16 text-gray-400">
-            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-sm">Loading banners...</p>
-          </div>
-        ) : banners.length === 0 ? (
-          <div className="bg-white rounded-2xl p-16 text-center text-gray-400 border border-gray-100 shadow-sm">
-            <ImageIcon size={40} className="mx-auto mb-3 opacity-30" />
-            <p className="text-sm font-medium">No banners yet — add your first one!</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {banners.map((b, i) => (
-              <div key={b.id} className={`rounded-2xl overflow-hidden shadow-md ${!b.isActive ? 'opacity-50' : ''}`}>
-                {/* Banner preview — relative so the bg image stays inside this section only */}
-                <div className={`relative h-36 bg-gradient-to-r ${gradients[i % gradients.length]} p-5 flex flex-col justify-between`}>
-                  {b.imageUrl && (
-                    <div className="absolute inset-0 bg-cover bg-center opacity-30 pointer-events-none"
-                      style={{ backgroundImage: `url(${b.imageUrl})` }} />
-                  )}
-                  <div className="relative flex items-start justify-between">
-                    <div>
-                      <p className="text-white font-bold text-lg leading-tight">{b.title}</p>
-                      {b.subtitle && <p className="text-white/80 text-sm mt-0.5">{b.subtitle}</p>}
-                    </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${b.isActive ? 'bg-white/20 text-white' : 'bg-black/20 text-white/70'}`}>
-                      {b.isActive ? '● Live' : '○ Off'}
-                    </span>
-                  </div>
-                  <div className="relative flex items-center gap-1 text-white/60 text-xs">
-                    <GripVertical size={12} />
-                    <span>Order: {b.sortOrder || i + 1}</span>
-                  </div>
-                </div>
-
-                {/* Actions bar */}
-                <div className="bg-white border border-gray-100 px-4 py-3 flex items-center justify-between">
-                  <div className="text-xs text-gray-500 font-medium truncate pr-2">
-                    {b.title || <span className="italic text-gray-300">No title</span>}
-                  </div>
-                  <div className="flex gap-1.5 flex-shrink-0">
-                    <button onClick={() => toggleActive(b)}
-                      className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors ${b.isActive ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}>
-                      {b.isActive ? 'Hide' : 'Show'}
-                    </button>
-                    <button onClick={() => openEdit(b)} className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100"><Edit2 size={12} /></button>
-                    <button onClick={() => setDeleteId(b.id)} className="w-7 h-7 rounded-lg bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100"><Trash2 size={12} /></button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+      <div className="p-6 space-y-8">
+        <BannerSection
+          type="main"
+          banners={banners}
+          loading={loading}
+          onAdd={() => openAdd('main')}
+          onEdit={openEdit}
+          onDelete={(id) => setDeleteId(id)}
+          onToggle={toggleActive}
+        />
+        <BannerSection
+          type="sub"
+          banners={banners}
+          loading={loading}
+          onAdd={() => openAdd('sub')}
+          onEdit={openEdit}
+          onDelete={(id) => setDeleteId(id)}
+          onToggle={toggleActive}
+        />
       </div>
 
       {/* ── Add / Edit Modal ─────────────────────────────────────────────────── */}
@@ -231,11 +283,28 @@ export default function BannersPage() {
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !saving && setShowModal(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white rounded-t-2xl z-10">
-              <h2 className="text-lg font-bold text-gray-900">{editId ? 'Edit Banner' : 'Add Banner'}</h2>
+              <h2 className="text-lg font-bold text-gray-900">
+                {editId ? 'Edit' : 'Add'} {SECTION_COPY[form.bannerType].label}
+              </h2>
               <button onClick={() => !saving && setShowModal(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"><X size={16} /></button>
             </div>
 
             <div className="p-6 space-y-4">
+
+              {/* ── Banner Type ─────────────────────────────────────────────────── */}
+              <div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setForm((f) => ({ ...f, bannerType: 'main' }))}
+                    className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${form.bannerType === 'main' ? 'bg-gray-800 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
+                    Main Banner
+                  </button>
+                  <button type="button" onClick={() => setForm((f) => ({ ...f, bannerType: 'sub' }))}
+                    className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${form.bannerType === 'sub' ? 'bg-gray-800 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
+                    Sub Banner
+                  </button>
+                </div>
+                <p className="text-[11px] text-gray-400 mt-1.5">{SECTION_COPY[form.bannerType].hint}</p>
+              </div>
 
               {/* ── Banner Image Upload ─────────────────────────────────────────── */}
               <div>
@@ -313,7 +382,7 @@ export default function BannersPage() {
                 <button onClick={handleSave} disabled={saving}
                   className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl py-2.5 text-sm font-semibold hover:from-blue-700 hover:to-indigo-700 shadow-md disabled:opacity-60 flex items-center justify-center gap-2">
                   {saving && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                  {saving ? (imageFile ? 'Uploading image…' : 'Saving…') : (editId ? 'Save Changes' : 'Add Banner')}
+                  {saving ? (imageFile ? 'Uploading image…' : 'Saving…') : (editId ? 'Save Changes' : `Add ${SECTION_COPY[form.bannerType].label}`)}
                 </button>
               </div>
             </div>

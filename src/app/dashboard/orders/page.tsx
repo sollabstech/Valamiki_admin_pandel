@@ -307,9 +307,16 @@ function exportToPDF(orders: Order[], label: string) {
 }
 
 type OrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
+type CancelRequestStatus = 'pending' | 'approved' | 'rejected';
 
 interface OrderItem { name: string; quantity: number; totalPrice: number; }
 interface Address { name: string; phone: string; street: string; city: string; pincode: string; }
+interface CancelRequest {
+  reason: string;
+  status: CancelRequestStatus;
+  requestedAt: Date;
+  reviewedAt?: Date;
+}
 interface Order {
   id: string;
   userId: string;
@@ -322,6 +329,7 @@ interface Order {
   products: OrderItem[];
   deliveryAddress: Address;
   createdAt: Date;
+  cancelRequest?: CancelRequest;
 }
 
 const STATUS_COLORS: Record<OrderStatus, string> = {
@@ -350,6 +358,9 @@ export default function OrdersPage() {
     const unsub = onSnapshot(q, (snap) => {
       const data: Order[] = snap.docs.map((d) => {
         const raw = d.data();
+        const rawCancel = raw.cancelRequest as
+          | { reason?: string; status?: CancelRequestStatus; requestedAt?: unknown; reviewedAt?: unknown }
+          | undefined;
         return {
           id: d.id,
           userId: raw.userId ?? '',
@@ -364,6 +375,14 @@ export default function OrdersPage() {
           createdAt: raw.createdAt instanceof Timestamp
             ? raw.createdAt.toDate()
             : new Date(),
+          cancelRequest: rawCancel
+            ? {
+                reason: rawCancel.reason ?? '',
+                status: rawCancel.status ?? 'pending',
+                requestedAt: rawCancel.requestedAt instanceof Timestamp ? rawCancel.requestedAt.toDate() : new Date(),
+                reviewedAt: rawCancel.reviewedAt instanceof Timestamp ? rawCancel.reviewedAt.toDate() : undefined,
+              }
+            : undefined,
         };
       });
       setOrders(data);
@@ -385,6 +404,23 @@ export default function OrdersPage() {
       });
     } catch (e) {
       console.error('Failed to update order status:', e);
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  // Accept cancels the order; reject leaves it running its normal course.
+  const resolveCancelRequest = async (orderId: string, approve: boolean) => {
+    setUpdating(orderId);
+    try {
+      await updateDoc(doc(db, 'orders', orderId), {
+        ...(approve ? { orderStatus: 'cancelled' as OrderStatus } : {}),
+        'cancelRequest.status': approve ? 'approved' : 'rejected',
+        'cancelRequest.reviewedAt': Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+    } catch (e) {
+      console.error('Failed to resolve cancellation request:', e);
     } finally {
       setUpdating(null);
     }
@@ -528,6 +564,11 @@ export default function OrdersPage() {
                         <span className={`px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${STATUS_COLORS[order.orderStatus]}`}>
                           {order.orderStatus}
                         </span>
+                        {order.cancelRequest?.status === 'pending' && (
+                          <span className="mt-1 block w-fit px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700">
+                            Cancel requested
+                          </span>
+                        )}
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
@@ -594,6 +635,47 @@ export default function OrdersPage() {
             </div>
 
             <div className="flex-1 p-6 space-y-5">
+
+              {/* Cancellation request */}
+              {selectedOrder.cancelRequest && (
+                <div className={`rounded-2xl p-4 border ${
+                  selectedOrder.cancelRequest.status === 'pending' ? 'bg-orange-50 border-orange-200'
+                  : selectedOrder.cancelRequest.status === 'approved' ? 'bg-red-50 border-red-200'
+                  : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-gray-500">Cancellation Request</p>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize ${
+                      selectedOrder.cancelRequest.status === 'pending' ? 'bg-orange-100 text-orange-700'
+                      : selectedOrder.cancelRequest.status === 'approved' ? 'bg-red-100 text-red-700'
+                      : 'bg-gray-200 text-gray-600'
+                    }`}>
+                      {selectedOrder.cancelRequest.status}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-700 italic">&ldquo;{selectedOrder.cancelRequest.reason}&rdquo;</p>
+                  <p className="text-[11px] text-gray-400 mt-1.5">
+                    Requested {selectedOrder.cancelRequest.requestedAt.toLocaleString('en-IN')}
+                  </p>
+
+                  {selectedOrder.cancelRequest.status === 'pending' && (
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        disabled={updating === selectedOrder.id}
+                        onClick={() => resolveCancelRequest(selectedOrder.id, true)}
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold py-2 rounded-lg transition-colors disabled:opacity-50">
+                        Accept — Cancel Order
+                      </button>
+                      <button
+                        disabled={updating === selectedOrder.id}
+                        onClick={() => resolveCancelRequest(selectedOrder.id, false)}
+                        className="flex-1 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold py-2 rounded-lg transition-colors disabled:opacity-50">
+                        Reject Request
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Status buttons */}
               <div className="bg-gray-50 rounded-2xl p-4">

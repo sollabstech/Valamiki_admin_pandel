@@ -30,6 +30,15 @@ export interface Category {
   sortOrder?: number;
 }
 
+export type CancelRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface CancelRequest {
+  reason: string;
+  status: CancelRequestStatus;
+  requestedAt: Date;
+  reviewedAt?: Date;
+}
+
 export interface Order {
   id: string;
   userId: string;
@@ -43,6 +52,7 @@ export interface Order {
   orderStatus: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
   createdAt: Date;
   updatedAt?: Date;
+  cancelRequest?: CancelRequest;
 }
 
 export interface OrderItem {
@@ -78,6 +88,7 @@ export interface Banner {
   linkValue?: string;
   isActive: boolean;
   sortOrder?: number;
+  bannerType?: 'main' | 'sub';
 }
 
 export interface Offer {

@@ -9,7 +9,7 @@ import {
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Plus, Edit2, Trash2, X, Image as ImageIcon, GripVertical, Upload, Info } from 'lucide-react';
 
-type BannerType = 'main' | 'sub';
+type BannerType = 'main' | 'sub' | 'print';
 
 interface Banner {
   id: string;
@@ -39,9 +39,10 @@ const gradients = [
   'from-cyan-500 to-blue-500',
 ];
 
-const SECTION_COPY: Record<BannerType, { label: string; hint: string }> = {
-  main: { label: 'Main Banner', hint: 'Shown in the homepage hero carousel at the very top.' },
-  sub: { label: 'Sub Banner', hint: 'Shown as a promo banner further down the homepage.' },
+const SECTION_COPY: Record<BannerType, { label: string; title: string; hint: string }> = {
+  main: { label: 'Main Banner', title: 'Main Banners', hint: 'Shown in the homepage hero carousel at the very top.' },
+  sub: { label: 'Sub Banner', title: 'Sub Banners', hint: 'Shown as a promo banner further down the homepage.' },
+  print: { label: 'Print Banner', title: 'Print Banners', hint: 'Shown at the top of the Print & Xerox Order page.' },
 };
 
 function BannerSection({
@@ -56,7 +57,7 @@ function BannerSection({
   onToggle: (b: Banner) => void;
 }) {
   const items = banners.filter((b) => b.bannerType === type);
-  const title = type === 'main' ? 'Main Banners' : 'Sub Banners';
+  const title = SECTION_COPY[type].title;
 
   return (
     <div className="space-y-3">
@@ -154,7 +155,7 @@ export default function BannersPage() {
           id: d.id, title: r.title ?? '', subtitle: r.subtitle ?? '',
           imageUrl: r.imageUrl ?? '', isActive: r.isActive ?? true,
           sortOrder: r.sortOrder ?? 0,
-          bannerType: r.bannerType === 'sub' ? 'sub' : 'main',
+          bannerType: r.bannerType === 'sub' ? 'sub' : r.bannerType === 'print' ? 'print' : 'main',
         };
       }));
       setLoading(false);
@@ -275,6 +276,15 @@ export default function BannersPage() {
           onDelete={(id) => setDeleteId(id)}
           onToggle={toggleActive}
         />
+        <BannerSection
+          type="print"
+          banners={banners}
+          loading={loading}
+          onAdd={() => openAdd('print')}
+          onEdit={openEdit}
+          onDelete={(id) => setDeleteId(id)}
+          onToggle={toggleActive}
+        />
       </div>
 
       {/* ── Add / Edit Modal ─────────────────────────────────────────────────── */}
@@ -301,6 +311,10 @@ export default function BannersPage() {
                   <button type="button" onClick={() => setForm((f) => ({ ...f, bannerType: 'sub' }))}
                     className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${form.bannerType === 'sub' ? 'bg-gray-800 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
                     Sub Banner
+                  </button>
+                  <button type="button" onClick={() => setForm((f) => ({ ...f, bannerType: 'print' }))}
+                    className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${form.bannerType === 'print' ? 'bg-gray-800 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
+                    Print Banner
                   </button>
                 </div>
                 <p className="text-[11px] text-gray-400 mt-1.5">{SECTION_COPY[form.bannerType].hint}</p>

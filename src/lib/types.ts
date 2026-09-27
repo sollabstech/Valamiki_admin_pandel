@@ -88,7 +88,7 @@ export interface Banner {
   linkValue?: string;
   isActive: boolean;
   sortOrder?: number;
-  bannerType?: 'main' | 'sub';
+  bannerType?: 'main' | 'sub' | 'print';
 }
 
 export interface Offer {

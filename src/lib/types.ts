@@ -14,6 +14,7 @@ export interface Product {
   isFeatured: boolean;
   isPopular: boolean;
   isFlashDeal: boolean;
+  isNew: boolean;
   rating: number;
   reviewCount: number;
   tags: string[];

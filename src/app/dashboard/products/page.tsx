@@ -27,6 +27,7 @@ interface Product {
   isFeatured: boolean;
   isPopular: boolean;
   isFlashDeal: boolean;
+  isNew: boolean;
   rating: number;
   reviewCount: number;
   tags: string[];
@@ -46,7 +47,7 @@ const MAX_IMAGES = 7;
 const initialForm = {
   name: '', description: '', categoryId: '', categoryName: '',
   price: '', discountPrice: '', unit: '', stock: '',
-  isAvailable: true, isFeatured: false, isPopular: false, isFlashDeal: false,
+  isAvailable: true, isFeatured: false, isPopular: false, isFlashDeal: false, isNew: true,
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -81,6 +82,7 @@ export default function ProductsPage() {
           unit: r.unit ?? '', stock: r.stock ?? 0,
           isAvailable: r.isAvailable ?? true, isFeatured: r.isFeatured ?? false,
           isPopular: r.isPopular ?? false, isFlashDeal: r.isFlashDeal ?? false,
+          isNew: r.isNew ?? false,
           rating: r.rating ?? 0, reviewCount: r.reviewCount ?? 0, tags: r.tags ?? [],
         };
       }));
@@ -133,7 +135,7 @@ export default function ProductsPage() {
       price: String(p.price), discountPrice: String(p.discountPrice || ''),
       unit: p.unit, stock: String(p.stock),
       isAvailable: p.isAvailable, isFeatured: p.isFeatured,
-      isPopular: p.isPopular, isFlashDeal: p.isFlashDeal,
+      isPopular: p.isPopular, isFlashDeal: p.isFlashDeal, isNew: p.isNew,
     });
     // Populate image entries from existing URLs (no File = keep as-is on save).
     setImageEntries(p.images.map((url) => ({ preview: url })));
@@ -231,6 +233,7 @@ export default function ProductsPage() {
         isFeatured: form.isFeatured,
         isPopular: form.isPopular,
         isFlashDeal: form.isFlashDeal,
+        isNew: form.isNew,
         rating: editProduct?.rating ?? 0,
         reviewCount: editProduct?.reviewCount ?? 0,
         tags: editProduct?.tags ?? [],
@@ -255,11 +258,6 @@ export default function ProductsPage() {
   const handleDelete = async (id: string) => {
     try { await deleteDoc(doc(db, 'products', id)); } catch (e) { console.error(e); }
     setDeleteId(null);
-  };
-
-  const toggleAvailable = async (p: Product) => {
-    try { await updateDoc(doc(db, 'products', p.id), { isAvailable: !p.isAvailable }); }
-    catch (e) { console.error(e); }
   };
 
   // ─── Render ─────────────────────────────────────────────────────────────────
@@ -298,6 +296,7 @@ export default function ProductsPage() {
             { label: 'Out of Stock', count: products.filter(p => p.stock === 0).length, color: 'bg-red-50 text-red-600' },
             { label: 'Featured', count: products.filter(p => p.isFeatured).length, color: 'bg-violet-50 text-violet-700' },
             { label: 'Flash Deals', count: products.filter(p => p.isFlashDeal).length, color: 'bg-orange-50 text-orange-600' },
+            { label: 'New', count: products.filter(p => p.isNew).length, color: 'bg-pink-50 text-pink-700' },
           ].map(s => (
             <span key={s.label} className={`px-3 py-1.5 rounded-full text-xs font-semibold ${s.color}`}>
               {s.label}: {s.count}
@@ -317,7 +316,7 @@ export default function ProductsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
-                    {['Product', 'Category', 'Price', 'Discount', 'Stock', 'Badges', 'Status', 'Actions'].map(h => (
+                    {['Product', 'Category', 'Price', 'Discount', 'Stock', 'Badges', 'Actions'].map(h => (
                       <th key={h} className="text-left px-5 py-3.5 text-xs font-semibold text-gray-500 whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -360,13 +359,8 @@ export default function ProductsPage() {
                           {p.isFeatured && <span className="text-[10px] bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded font-semibold">Featured</span>}
                           {p.isPopular && <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-semibold">Popular</span>}
                           {p.isFlashDeal && <span className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded font-semibold">⚡ Flash</span>}
+                          {p.isNew && <span className="text-[10px] bg-pink-50 text-pink-600 px-1.5 py-0.5 rounded font-semibold">New</span>}
                         </div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <button onClick={() => toggleAvailable(p)}
-                          className={`relative inline-flex w-10 h-5 rounded-full transition-colors ${p.isAvailable ? 'bg-emerald-500' : 'bg-gray-200'}`}>
-                          <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${p.isAvailable ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                        </button>
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-1">
@@ -533,18 +527,21 @@ export default function ProductsPage() {
                     { key: 'isFeatured', label: 'Featured', color: 'violet' },
                     { key: 'isPopular', label: 'Popular', color: 'blue' },
                     { key: 'isFlashDeal', label: '⚡ Flash Deal', color: 'orange' },
+                    { key: 'isNew', label: '🆕 New', color: 'pink' },
                   ] as const).map(({ key, label, color }) => (
                     <label key={key}
                       className={`flex items-center justify-between rounded-xl px-4 py-3 cursor-pointer border ${
                         color === 'emerald' ? 'bg-emerald-50 border-emerald-100' :
                         color === 'violet' ? 'bg-violet-50 border-violet-100' :
                         color === 'orange' ? 'bg-orange-50 border-orange-100' :
+                        color === 'pink' ? 'bg-pink-50 border-pink-100' :
                         'bg-blue-50 border-blue-100'
                       }`}>
                       <span className={`text-sm font-semibold ${
                         color === 'emerald' ? 'text-emerald-700' :
                         color === 'violet' ? 'text-violet-700' :
                         color === 'orange' ? 'text-orange-700' :
+                        color === 'pink' ? 'text-pink-700' :
                         'text-blue-700'
                       }`}>{label}</span>
                       <button type="button"
@@ -553,6 +550,7 @@ export default function ProductsPage() {
                           color === 'emerald' ? 'bg-emerald-500' :
                           color === 'violet' ? 'bg-violet-500' :
                           color === 'orange' ? 'bg-orange-500' :
+                          color === 'pink' ? 'bg-pink-500' :
                           'bg-blue-500'
                         ) : 'bg-gray-200'}`}>
                         <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${form[key] ? 'translate-x-5' : 'translate-x-0.5'}`} />
